@@ -48,25 +48,25 @@ signature.TextColor3 = Color3.fromRGB(99, 99, 99) -- Texto cinza
 signature.TextSize = 10
 signature.Parent = menu
 
--- Cria o botão "Find Mounds" dentro do menu
-local findMoundsButton = Instance.new("TextButton")
-findMoundsButton.Size = UDim2.new(0, 120, 0, 30) -- Tamanho do botão
-findMoundsButton.Position = UDim2.new(0, 15, 0, 15) -- Posição dentro do menu (15 pixels do topo)
-findMoundsButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Cor verde
-findMoundsButton.Text = "Find Mounds"
-findMoundsButton.TextColor3 = Color3.fromRGB(103, 103, 103) -- Texto cinza
-findMoundsButton.TextSize = 13
-findMoundsButton.Parent = menu
+-- Cria o botão "Find Eggs" dentro do menu
+local findEggsButton = Instance.new("TextButton")
+findEggsButton.Size = UDim2.new(0, 120, 0, 30) -- Tamanho do botão
+findEggsButton.Position = UDim2.new(0, 15, 0, 15) -- Posição dentro do menu (15 pixels do topo)
+findEggsButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Cor verde
+findEggsButton.Text = "Find Eggs"
+findEggsButton.TextColor3 = Color3.fromRGB(103, 103, 103) -- Texto cinza
+findEggsButton.TextSize = 13
+findEggsButton.Parent = menu
 
--- Adiciona bordas arredondadas ao botão "Find Mounds"
-local findMoundsCorner = Instance.new("UICorner")
-findMoundsCorner.CornerRadius = UDim.new(0, 8)
-findMoundsCorner.Parent = findMoundsButton
+-- Adiciona bordas arredondadas ao botão "Find Eggs"
+local findEggsCorner = Instance.new("UICorner")
+findEggsCorner.CornerRadius = UDim.new(0, 8)
+findEggsCorner.Parent = findEggsButton
 
--- Cria o botão "Reset" abaixo do "Find Mounds"
+-- Cria o botão "Reset" abaixo do "Find Eggs"
 local resetButton = Instance.new("TextButton")
 resetButton.Size = UDim2.new(0, 120, 0, 30) -- Tamanho do botão
-resetButton.Position = UDim2.new(0, 15, 0, 50) -- Posição abaixo do "Find Mounds" (15 + 30 + 5 de espaço)
+resetButton.Position = UDim2.new(0, 15, 0, 50) -- Posição abaixo do "Find Eggs" (15 + 30 + 5 de espaço)
 resetButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Cor vermelha
 resetButton.Text = "Reset"
 resetButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- Texto branco
@@ -88,50 +88,69 @@ local menuDragging = false
 local menuDragStart = nil
 local menuStartPos = nil
 
--- Tabela para rastrear Mounds visitados
-local visitedMounds = {}
+-- Tabela para rastrear ovos visitados
+local visitedEggs = {}
 
--- Função para teleportar para um Mound aleatório e congelar no ar
-local function teleportToRandomMound()
-	local moundsFolder = game.Workspace:FindFirstChild("DirtEventContent") and game.Workspace.DirtEventContent:FindFirstChild("Mounds")
-	if not moundsFolder then
-		warn("Pasta 'Workspace.DirtEventContent.Mounds' não encontrada!")
+-- Função para teleportar para um ovo aleatório e congelar no ar
+local function teleportToRandomEgg()
+	local eggPlacements = game.Workspace:FindFirstChild("EggPlacements")
+	if not eggPlacements then
+		warn("Pasta 'Workspace.EggPlacements' não encontrada!")
 		return
 	end
 
-	local mounds = moundsFolder:GetChildren()
-	local availableMounds = {}
+	-- Lista de subpastas a verificar
+	local subFolders = {
+		"Basic",
+		"Booster",
+		"Car",
+		"Chomper",
+		"Drone",
+		"Faberge",
+		"Fire",
+		"Mine",
+		"Shark",
+		"SmallEggs",
+		"Sturdy"
+	}
 
-	-- Filtra Mounds não visitados
-	for _, mound in pairs(mounds) do
-		if mound:IsA("BasePart") or mound:IsA("Model") then
-			if not visitedMounds[mound] then
-				table.insert(availableMounds, mound)
+	local availableEggs = {}
+
+	-- Coleta todos os ovos não visitados das subpastas
+	for _, folderName in ipairs(subFolders) do
+		local folder = eggPlacements:FindFirstChild(folderName)
+		if folder then
+			for _, egg in ipairs(folder:GetChildren()) do
+				if (egg:IsA("BasePart") or egg:IsA("Model")) and not visitedEggs[egg] then
+					table.insert(availableEggs, egg)
+				end
 			end
+		else
+			warn("Pasta '" .. folderName .. "' não encontrada em EggPlacements!")
 		end
 	end
 
-	-- Verifica se há Mounds disponíveis
-	if #availableMounds == 0 then
-		warn("Todos os Mounds já foram visitados!")
+	-- Verifica se há ovos disponíveis
+	if #availableEggs == 0 then
+		warn("Todos os ovos já foram visitados!")
 		return
 	end
 
-	-- Escolhe um Mound aleatório
-	local randomIndex = math.random(1, #availableMounds)
-	local selectedMound = availableMounds[randomIndex]
+	-- Escolhe um ovo aleatório
+	local randomIndex = math.random(1, #availableEggs)
+	local selectedEgg = availableEggs[randomIndex]
 
-	-- Marca o Mound como visitado
-	visitedMounds[selectedMound] = true
+	-- Marca o ovo como visitado
+	visitedEggs[selectedEgg] = true
 
-	-- Calcula a posição 10 studs acima do Mound
-	local moundPosition
-	if selectedMound:IsA("Model") then
-		moundPosition = selectedMound:GetPivot().Position -- Usa o pivô do modelo
+	-- Calcula a posição 10 studs acima do ovo
+	local eggPosition
+	if selectedEgg:IsA("Model") then
+		eggPosition = selectedEgg:GetPivot().Position -- Usa o pivô do modelo
 	else
-		moundPosition = selectedMound.Position -- Usa a posição da parte
+		eggPosition = selectedEgg.Position -- Usa a posição da parte
 	end
-	local teleportPosition = moundPosition + Vector3.new(0, 10, 0)
+	local teleportPosition = eggPosition + Vector3.new(0, 10, 0)
 
 	-- Teleporta o jogador e congela no ar
 	if humanoidRootPart then
@@ -142,15 +161,15 @@ local function teleportToRandomMound()
 	end
 end
 
--- Função para resetar os Mounds visitados
-local function resetVisitedMounds()
-	visitedMounds = {} -- Limpa a tabela de Mounds visitados
-	print("Mounds visitados resetados!")
+-- Função para resetar os ovos visitados
+local function resetVisitedEggs()
+	visitedEggs = {} -- Limpa a tabela de ovos visitados
+	print("Ovos visitados resetados!")
 end
 
 -- Conecta as funções aos botões
-findMoundsButton.MouseButton1Click:Connect(teleportToRandomMound)
-resetButton.MouseButton1Click:Connect(resetVisitedMounds)
+findEggsButton.MouseButton1Click:Connect(teleportToRandomEgg)
+resetButton.MouseButton1Click:Connect(resetVisitedEggs)
 
 -- Função para alternar o menu e o texto do botão
 local function toggleMenu()
@@ -174,7 +193,7 @@ button.InputChanged:Connect(function(input)
 	if buttonDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - buttonDragStart
 		button.Position = UDim2.new(
-			buttonStartPos.X.Scale,
+			buttonStartPathStartPos.X.Scale,
 			buttonStartPos.X.Offset + delta.X,
 			buttonStartPos.Y.Scale,
 			buttonStartPos.Y.Offset + delta.Y
