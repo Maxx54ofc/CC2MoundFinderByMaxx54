@@ -27,7 +27,7 @@ buttonCorner.Parent = button
 
 -- Cria o menu (inicialmente invisível)
 local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 150, 0, 300) -- Aumentado para acomodar o ScrollingFrame
+menu.Size = UDim2.new(0, 150, 0, 300) -- Tamanho do menu
 menu.Position = UDim2.new(0, 100, 0, 140) -- Posição inicial (abaixo do botão)
 menu.BackgroundColor3 = Color3.fromRGB(70, 70, 70) -- Cor de fundo do menu
 menu.Visible = false -- Começa escondido
@@ -51,7 +51,7 @@ signature.Parent = menu
 -- Cria o botão "Find Eggs" dentro do menu
 local findEggsButton = Instance.new("TextButton")
 findEggsButton.Size = UDim2.new(0, 120, 0, 30) -- Tamanho do botão
-findEggsButton.Position = UDim2.new(0, 15, 0, 15) -- Posição dentro do menu (15 pixels do topo)
+findEggsButton.Position = UDim2.new(0, 15, 0, 15) -- Posição dentro do menu
 findEggsButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Cor verde
 findEggsButton.Text = "Find Eggs"
 findEggsButton.TextColor3 = Color3.fromRGB(103, 103, 103) -- Texto cinza
@@ -66,7 +66,7 @@ findEggsCorner.Parent = findEggsButton
 -- Cria o botão "Reset" abaixo do "Find Eggs"
 local resetButton = Instance.new("TextButton")
 resetButton.Size = UDim2.new(0, 120, 0, 30) -- Tamanho do botão
-resetButton.Position = UDim2.new(0, 15, 0, 50) -- Posição abaixo do "Find Eggs" (15 + 30 + 5 de espaço)
+resetButton.Position = UDim2.new(0, 15, 0, 50) -- Posição abaixo do "Find Eggs"
 resetButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Cor vermelha
 resetButton.Text = "Reset"
 resetButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- Texto branco
@@ -78,10 +78,25 @@ local resetCorner = Instance.new("UICorner")
 resetCorner.CornerRadius = UDim.new(0, 8)
 resetCorner.Parent = resetButton
 
+-- Cria o botão "ESP" abaixo do "Reset"
+local espButton = Instance.new("TextButton")
+espButton.Size = UDim2.new(0, 120, 0, 30) -- Tamanho do botão
+espButton.Position = UDim2.new(0, 15, 0, 85) -- Posição abaixo do "Reset"
+espButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Começa inativo (vermelho)
+espButton.Text = "ESP: Off"
+espButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- Texto branco
+espButton.TextSize = 13
+espButton.Parent = menu
+
+-- Adiciona bordas arredondadas ao botão "ESP"
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 8)
+espCorner.Parent = espButton
+
 -- Cria o ScrollingFrame para os botões de categoria
 local scrollingFrame = Instance.new("ScrollingFrame")
-scrollingFrame.Size = UDim2.new(0, 120, 0, 190) -- Tamanho do ScrollingFrame
-scrollingFrame.Position = UDim2.new(0, 15, 0, 90) -- Abaixo do botão "Reset"
+scrollingFrame.Size = UDim2.new(0, 120, 0, 155) -- Ajustado para caber o botão ESP
+scrollingFrame.Position = UDim2.new(0, 15, 0, 125) -- Abaixo do botão "ESP"
 scrollingFrame.BackgroundTransparency = 1 -- Sem fundo
 scrollingFrame.ScrollBarThickness = 5 -- Espessura da barra de rolagem
 scrollingFrame.Parent = menu
@@ -151,6 +166,113 @@ local menuStartPos = nil
 -- Tabela para rastrear ovos visitados
 local visitedEggs = {}
 
+-- Variável para controlar o estado do ESP
+local espEnabled = false
+
+-- Tabela para armazenar os BillboardGuis dos ovos
+local eggBillboards = {}
+
+-- Função para criar ou atualizar o BillboardGui de um ovo
+local function createEggESP(egg)
+	if eggBillboards[egg] then
+		return -- Já existe um BillboardGui para este ovo
+	end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "EggESP"
+	billboard.Adornee = egg:IsA("BasePart") and egg or egg.PrimaryPart or egg -- Tenta PrimaryPart primeiro
+	billboard.Size = UDim2.new(0, 100, 0, 50)
+	billboard.StudsOffset = Vector3.new(0, 3, 0) -- Acima do ovo
+	billboard.AlwaysOnTop = true
+	billboard.Enabled = false -- Começa desativado
+	billboard.Parent = egg
+
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Size = UDim2.new(1, 0, 1, 0)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 0) -- Texto amarelo
+	distanceLabel.TextSize = 14
+	distanceLabel.Text = "0 studs"
+	distanceLabel.Parent = billboard
+
+	eggBillboards[egg] = billboard
+
+	-- Remove o BillboardGui quando o ovo é destruído
+	egg.AncestryChanged:Connect(function()
+		if not egg:IsDescendantOf(game) then
+			billboard:Destroy()
+			eggBillboards[egg] = nil
+		end
+	end)
+end
+
+-- Função para atualizar a visibilidade e distância dos ESPs
+local function updateESP()
+	if not espEnabled then
+		for _, billboard in pairs(eggBillboards) do
+			billboard.Enabled = false
+		end
+		return
+	end
+
+	local playerPos = humanoidRootPart.Position
+	for egg, billboard in pairs(eggBillboards) do
+		if egg:IsDescendantOf(game) then
+			local eggPos = egg:IsA("BasePart") and egg.Position or (egg.PrimaryPart and egg.PrimaryPart.Position or egg:GetPivot().Position)
+			local distance = (playerPos - eggPos).Magnitude
+			local distanceText = math.floor(distance) .. " studs"
+			billboard.DistanceLabel.Text = distanceText
+			billboard.Enabled = distance <= 100 -- Visível se estiver a 100 studs ou menos
+		else
+			billboard:Destroy()
+			eggBillboards[egg] = nil
+		end
+	end
+end
+
+-- Função para inicializar o ESP para ovos existentes
+local function initializeESP()
+	local eggPlacements = game.Workspace:FindFirstChild("EggPlacements")
+	if not eggPlacements then
+		return
+	end
+
+	for _, category in ipairs(categories) do
+		local folder = eggPlacements:FindFirstChild(category)
+		if folder then
+			for _, egg in ipairs(folder:GetChildren()) do
+				if egg:IsA("BasePart") or egg:IsA("Model") then
+					createEggESP(egg)
+				end
+			end
+			-- Monitora novos ovos adicionados à pasta
+			folder.ChildAdded:Connect(function(egg)
+				if (egg:IsA("BasePart") or egg:IsA("Model")) and espEnabled then
+					createEggESP(egg)
+				end
+			end)
+		end
+	end
+end
+
+-- Função para alternar o ESP
+local function toggleESP()
+	espEnabled = not espEnabled
+	espButton.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+	espButton.Text = espEnabled and "ESP: On" or "ESP: Off"
+
+	if espEnabled then
+		initializeESP()
+	end
+	updateESP()
+end
+
+-- Conecta o botão ESP
+espButton.MouseButton1Click:Connect(toggleESP)
+
+-- Atualiza o ESP em um loop
+game:GetService("RunService").RenderStepped:Connect(updateESP)
+
 -- Função para teleportar para um ovo aleatório e congelar no ar
 local function teleportToRandomEgg()
 	local eggPlacements = game.Workspace:FindFirstChild("EggPlacements")
@@ -192,10 +314,10 @@ local function teleportToRandomEgg()
 
 	-- Calcula a posição 10 studs acima do ovo
 	local eggPosition
-	if selectedEgg:IsA("Model") then
-		eggPosition = selectedEgg:GetPivot().Position -- Usa o pivô do modelo
+	if selectedEgg:IsA("BasePart") then
+		eggPosition = selectedEgg.Position
 	else
-		eggPosition = selectedEgg.Position -- Usa a posição da parte
+		eggPosition = selectedEgg.PrimaryPart and selectedEgg.PrimaryPart.Position or selectedEgg:GetPivot().Position
 	end
 	local teleportPosition = eggPosition + Vector3.new(0, 10, 0)
 
@@ -217,7 +339,7 @@ local function teleportToRandomEgg()
 			task.wait(2) -- Espera 2 segundos
 			-- Libera o carro
 			for _, part in ipairs(vehicle:GetDescendants()) do
-				if part:IsA("BasePart") then
+				if part:IsA("BasePart") do
 					part.Anchored = false
 				end
 			end
@@ -305,3 +427,6 @@ menu.InputEnded:Connect(function(input)
 		menuDragging = false
 	end
 end)
+
+-- Inicializa o ESP para ovos existentes quando o script carrega
+initializeESP()
