@@ -9,15 +9,19 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 -- Cria um ScreenGui para o jogador
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DraggableButtonGui"
+screenGui.Enabled = true -- Garante que o ScreenGui está ativo
+screenGui.IgnoreGuiInset = true -- Ignora barras de interface
 screenGui.Parent = playerGui
 
 -- Cria o botão principal
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0, 40, 0, 40) -- Tamanho 40x40 pixels
-button.Position = UDim2.new(0, 100, 0, 100) -- Posição inicial (x: 100, y: 100)
+button.Position = UDim2.new(0.5, -20, 0.5, -20) -- Centralizado na tela
 button.BackgroundColor3 = Color3.fromRGB(91, 91, 91) -- Cor de fundo cinza
 button.Text = "+" -- Texto inicial
+button.TextColor3 = Color3.fromRGB(255, 255, 255) -- Texto branco
 button.TextSize = 20
+button.Visible = true -- Garante que o botão está visível
 button.Parent = screenGui
 
 -- Adiciona bordas arredondadas ao botão
@@ -28,7 +32,7 @@ buttonCorner.Parent = button
 -- Cria o menu (inicialmente invisível)
 local menu = Instance.new("Frame")
 menu.Size = UDim2.new(0, 150, 0, 300) -- Tamanho do menu
-menu.Position = UDim2.new(0, 100, 0, 140) -- Posição inicial (abaixo do botão)
+menu.Position = UDim2.new(0.5, -75, 0.5, 20) -- Abaixo do botão centralizado
 menu.BackgroundColor3 = Color3.fromRGB(70, 70, 70) -- Cor de fundo do menu
 menu.Visible = false -- Começa escondido
 menu.Parent = screenGui
@@ -339,7 +343,7 @@ local function teleportToRandomEgg()
 			task.wait(2) -- Espera 2 segundos
 			-- Libera o carro
 			for _, part in ipairs(vehicle:GetDescendants()) do
-				if part:IsA("BasePart") do
+				if part:IsA("BasePart") then
 					part.Anchored = false
 				end
 			end
