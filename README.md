@@ -27,7 +27,7 @@ buttonCorner.Parent = button
 
 -- Cria o menu (inicialmente invisível)
 local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 150, 0, 200) -- Tamanho do menu
+menu.Size = UDim2.new(0, 150, 0, 300) -- Aumentado para acomodar o ScrollingFrame
 menu.Position = UDim2.new(0, 100, 0, 140) -- Posição inicial (abaixo do botão)
 menu.BackgroundColor3 = Color3.fromRGB(70, 70, 70) -- Cor de fundo do menu
 menu.Visible = false -- Começa escondido
@@ -78,6 +78,66 @@ local resetCorner = Instance.new("UICorner")
 resetCorner.CornerRadius = UDim.new(0, 8)
 resetCorner.Parent = resetButton
 
+-- Cria o ScrollingFrame para os botões de categoria
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(0, 120, 0, 190) -- Tamanho do ScrollingFrame
+scrollingFrame.Position = UDim2.new(0, 15, 0, 90) -- Abaixo do botão "Reset"
+scrollingFrame.BackgroundTransparency = 1 -- Sem fundo
+scrollingFrame.ScrollBarThickness = 5 -- Espessura da barra de rolagem
+scrollingFrame.Parent = menu
+
+-- Adiciona UIListLayout ao ScrollingFrame
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 5) -- Espaçamento entre botões
+listLayout.Parent = scrollingFrame
+
+-- Lista de categorias
+local categories = {
+	"Basic",
+	"Booster",
+	"Car",
+	"Chomper",
+	"Drone",
+	"Faberge",
+	"Fire",
+	"Mine",
+	"Shark",
+	"SmallEggs",
+	"Sturdy"
+}
+
+-- Tabela para rastrear o estado das categorias (ativo/inativo)
+local categoryStates = {}
+
+-- Cria botões para cada categoria
+for _, category in ipairs(categories) do
+	local categoryButton = Instance.new("TextButton")
+	categoryButton.Size = UDim2.new(0, 110, 0, 25) -- Tamanho do botão
+	categoryButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Começa ativo (verde)
+	categoryButton.Text = category
+	categoryButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- Texto branco
+	categoryButton.TextSize = 12
+	categoryButton.Parent = scrollingFrame
+
+	-- Adiciona bordas arredondadas
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 5)
+	corner.Parent = categoryButton
+
+	-- Inicializa o estado como ativo
+	categoryStates[category] = true
+
+	-- Função para alternar o estado
+	categoryButton.MouseButton1Click:Connect(function()
+		categoryStates[category] = not categoryStates[category]
+		categoryButton.BackgroundColor3 = categoryStates[category] and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+	end)
+end
+
+-- Ajusta o CanvasSize do ScrollingFrame com base no número de botões
+scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, #categories * 30)
+
 -- Variáveis para controle de arrastar o botão
 local buttonDragging = false
 local buttonDragStart = nil
@@ -99,40 +159,27 @@ local function teleportToRandomEgg()
 		return
 	end
 
-	-- Lista de subpastas a verificar
-	local subFolders = {
-		"Basic",
-		"Booster",
-		"Car",
-		"Chomper",
-		"Drone",
-		"Faberge",
-		"Fire",
-		"Mine",
-		"Shark",
-		"SmallEggs",
-		"Sturdy"
-	}
-
 	local availableEggs = {}
 
-	-- Coleta todos os ovos não visitados das subpastas
-	for _, folderName in ipairs(subFolders) do
-		local folder = eggPlacements:FindFirstChild(folderName)
-		if folder then
-			for _, egg in ipairs(folder:GetChildren()) do
-				if (egg:IsA("BasePart") or egg:IsA("Model")) and not visitedEggs[egg] then
-					table.insert(availableEggs, egg)
+	-- Coleta todos os ovos não visitados das categorias ativas
+	for _, category in ipairs(categories) do
+		if categoryStates[category] then -- Verifica se a categoria está ativa
+			local folder = eggPlacements:FindFirstChild(category)
+			if folder then
+				for _, egg in ipairs(folder:GetChildren()) do
+					if (egg:IsA("BasePart") or egg:IsA("Model")) and not visitedEggs[egg] then
+						table.insert(availableEggs, egg)
+					end
 				end
+			else
+				warn("Pasta '" .. category .. "' não encontrada em EggPlacements!")
 			end
-		else
-			warn("Pasta '" .. folderName .. "' não encontrada em EggPlacements!")
 		end
 	end
 
 	-- Verifica se há ovos disponíveis
 	if #availableEggs == 0 then
-		warn("Todos os ovos já foram visitados!")
+		warn("Nenhum ovo disponível nas categorias selecionadas!")
 		return
 	end
 
@@ -152,12 +199,37 @@ local function teleportToRandomEgg()
 	end
 	local teleportPosition = eggPosition + Vector3.new(0, 10, 0)
 
-	-- Teleporta o jogador e congela no ar
-	if humanoidRootPart then
-		humanoidRootPart.CFrame = CFrame.new(teleportPosition)
-		humanoidRootPart.Anchored = true -- Congela o jogador no ar
-		task.wait(2) -- Espera 2 segundos
-		humanoidRootPart.Anchored = false -- Libera para cair
+	-- Verifica se o jogador está em um carro
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local isInVehicle = humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat")
+
+	if isInVehicle then
+		-- Teleporta o carro
+		local vehicle = humanoid.SeatPart:FindFirstAncestorOfClass("Model")
+		if vehicle then
+			vehicle:SetPrimaryPartCFrame(CFrame.new(teleportPosition))
+			-- Congela o carro no ar
+			for _, part in ipairs(vehicle:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Anchored = true
+				end
+			end
+			task.wait(2) -- Espera 2 segundos
+			-- Libera o carro
+			for _, part in ipairs(vehicle:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.Anchored = false
+				end
+			end
+		end
+	else
+		-- Teleporta apenas o jogador
+		if humanoidRootPart then
+			humanoidRootPart.CFrame = CFrame.new(teleportPosition)
+			humanoidRootPart.Anchored = true -- Congela o jogador no ar
+			task.wait(2) -- Espera 2 segundos
+			humanoidRootPart.Anchored = false -- Libera para cair
+		end
 	end
 end
 
@@ -193,7 +265,7 @@ button.InputChanged:Connect(function(input)
 	if buttonDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local delta = input.Position - buttonDragStart
 		button.Position = UDim2.new(
-			buttonStartPathStartPos.X.Scale,
+			buttonStartPos.X.Scale,
 			buttonStartPos.X.Offset + delta.X,
 			buttonStartPos.Y.Scale,
 			buttonStartPos.Y.Offset + delta.Y
